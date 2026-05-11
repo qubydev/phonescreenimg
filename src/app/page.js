@@ -3,8 +3,21 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { Upload, Download, RotateCcw, Sparkles, MonitorSmartphone, Plus, Minus, Layers, Sliders } from "lucide-react"
 
 const CORNER_RADIUS = 0.06
+
+const STUDIO_POSES = [
+  { name: "Default Front", rot: [0, 0, 0] },
+  { name: "Dynamic Isometric", rot: [15, -35, -10] },
+  { name: "Product Showcase", rot: [5, 25, 0] },
+  { name: "Flat Lay Presentation", rot: [45, 0, -30] },
+  { name: "Dramatic Low Angle", rot: [-15, -20, 5] },
+  { name: "Sleek Side Profile", rot: [0, 75, 0] },
+  { name: "Tilted Perspective", rot: [20, 45, 15] }
+]
 
 function drawRoundedRect(ctx, x, y, w, h, r) {
   ctx.beginPath()
@@ -23,39 +36,90 @@ function drawRoundedRect(ctx, x, y, w, h, r) {
 export default function Home() {
   const mountRef = useRef(null)
   const screenRef = useRef(null)
+  const modelGroupRef = useRef(null)
+  const controlsRef = useRef(null)
+
   const [uploaded, setUploaded] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [fileName, setFileName] = useState("")
+  const [currentPoseName, setCurrentPoseName] = useState("Default Front")
+
+  const [rotX, setRotX] = useState(0)
+  const [rotY, setRotY] = useState(0)
+  const [rotZ, setRotZ] = useState(0)
+
+  const rotRefs = useRef({ x: 0, y: 0, z: 0 })
+
+  const updateRotation = useCallback((axis, value) => {
+    rotRefs.current[axis] = (value * Math.PI) / 180
+    if (axis === 'x') setRotX(value)
+    if (axis === 'y') setRotY(value)
+    if (axis === 'z') setRotZ(value)
+  }, [])
+
+  const applyPoseAngles = useCallback((rotArray, poseLabel = "Custom") => {
+    if (controlsRef.current) {
+      controlsRef.current.reset()
+    }
+    updateRotation('x', rotArray[0])
+    updateRotation('y', rotArray[1])
+    updateRotation('z', rotArray[2])
+    setCurrentPoseName(poseLabel)
+  }, [updateRotation])
+
+  const handleRandomPose = useCallback(() => {
+    const availablePoses = STUDIO_POSES.filter(p => p.name !== currentPoseName)
+    const randomIndex = Math.floor(Math.random() * availablePoses.length)
+    const selected = availablePoses[randomIndex]
+    applyPoseAngles(selected.rot, selected.name)
+  }, [currentPoseName, applyPoseAngles])
 
   useEffect(() => {
     const mount = mountRef.current
+    if (!mount) return
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true
+    })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 3))
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     renderer.outputColorSpace = THREE.SRGBColorSpace
-    renderer.toneMapping = THREE.NoToneMapping
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.1
     renderer.setClearColor(0x000000, 0)
     mount.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 100)
-    camera.position.set(0, 0, 6)
+    camera.position.set(0, 0, 6.5)
 
-    scene.add(new THREE.AmbientLight(0xffffff, 2))
-    const keyLight = new THREE.DirectionalLight(0xffffff, 3)
-    keyLight.position.set(5, 5, 5)
+    scene.add(new THREE.AmbientLight(0xffffff, 1.8))
+    const keyLight = new THREE.DirectionalLight(0xffffff, 3.5)
+    keyLight.position.set(5, 5, 4)
     scene.add(keyLight)
-    const fillLight = new THREE.DirectionalLight(0xffffff, 1)
-    fillLight.position.set(-5, 2, 3)
+
+    const fillLight = new THREE.DirectionalLight(0x90b0ff, 1.5)
+    fillLight.position.set(-5, -2, 2)
     scene.add(fillLight)
+
+    const rimLight = new THREE.DirectionalLight(0xffffff, 2)
+    rimLight.position.set(0, 4, -4)
+    scene.add(rimLight)
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
-    controls.dampingFactor = 0.05
+    controls.dampingFactor = 0.08
     controls.enablePan = false
-    controls.minDistance = 3
-    controls.maxDistance = 10
+    controls.minDistance = 3.5
+    controls.maxDistance = 9
     controls.target.set(0, 0, 0)
+    controlsRef.current = controls
+
+    const pivotGroup = new THREE.Group()
+    scene.add(pivotGroup)
+    modelGroupRef.current = pivotGroup
 
     const loader = new GLTFLoader()
     loader.load('/models/iphone_17_pro_max.glb', (gltf) => {
@@ -73,7 +137,7 @@ export default function Home() {
       model.position.sub(center)
       model.updateMatrixWorld(true)
 
-      scene.add(model)
+      pivotGroup.add(model)
 
       let screenMesh = null
       model.traverse((node) => {
@@ -124,7 +188,7 @@ export default function Home() {
         imgCvs.width = pw
         imgCvs.height = ph
         const imgCtx = imgCvs.getContext('2d')
-        imgCtx.fillStyle = '#000'
+        imgCtx.fillStyle = '#0a0a0c'
         imgCtx.fillRect(0, 0, pw, ph)
 
         const imgTex = new THREE.CanvasTexture(imgCvs)
@@ -153,20 +217,30 @@ export default function Home() {
     const animate = () => {
       frameId = requestAnimationFrame(animate)
       controls.update()
+
+      if (pivotGroup) {
+        pivotGroup.rotation.x = rotRefs.current.x
+        pivotGroup.rotation.y = rotRefs.current.y
+        pivotGroup.rotation.z = rotRefs.current.z
+      }
+
       renderer.render(scene, camera)
     }
     animate()
 
     const onResize = () => {
-      camera.aspect = mount.clientWidth / mount.clientHeight
+      if (!mountRef.current) return
+      camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight
       camera.updateProjectionMatrix()
-      renderer.setSize(mount.clientWidth, mount.clientHeight)
+      renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight)
     }
-    window.addEventListener('resize', onResize)
+
+    const resizeObserver = new ResizeObserver(() => onResize())
+    resizeObserver.observe(mount)
 
     return () => {
       cancelAnimationFrame(frameId)
-      window.removeEventListener('resize', onResize)
+      resizeObserver.disconnect()
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
       renderer.dispose()
     }
@@ -176,6 +250,7 @@ export default function Home() {
     const file = e.target.files[0]
     if (!file || !screenRef.current) return
 
+    setFileName(file.name)
     const { imgCvs, imgCtx, imgTex, pw, ph, r } = screenRef.current
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -207,24 +282,162 @@ export default function Home() {
     img.src = url
   }, [])
 
+  const handleDownload = useCallback(() => {
+    const canvas = mountRef.current?.querySelector('canvas')
+    if (!canvas) return
+
+    const link = document.createElement('a')
+    link.download = fileName ? `mockup-${fileName.split('.')[0]}.png` : 'phone-mockup.png'
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }, [fileName])
+
+  const handleAngleChange = (axis, value) => {
+    updateRotation(axis, value)
+    if (currentPoseName !== "Custom") setCurrentPoseName("Custom")
+  }
+
+  const stepAngle = (axis, delta, min, max) => {
+    const current = axis === 'x' ? rotX : axis === 'y' ? rotY : rotZ
+    const next = Math.max(min, Math.min(max, current + delta))
+    handleAngleChange(axis, next)
+  }
+
   return (
-    <div className="relative w-full h-screen">
-      <div ref={mountRef} className="absolute inset-0" />
+    <div className="flex flex-col md:flex-row w-screen h-screen bg-background text-foreground overflow-hidden select-none">
+      <div className="relative flex-1 h-[55%] md:h-full w-full flex items-center justify-center border-b md:border-b-0 md:border-r border-border/60 bg-dot-black/[0.08] dark:bg-dot-white/[0.04]">
+        <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      )}
-
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-        <label className="cursor-pointer">
-          <div className="bg-primary text-primary-foreground text-sm font-medium px-8 py-3 rounded-full hover:opacity-90 transition-opacity shadow-lg">
-            {uploaded ? 'Change wallpaper' : 'Add wallpaper'}
+        {loading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-md z-10">
+            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <p className="text-xs font-medium text-muted-foreground tracking-wide">Initializing Studio Engine...</p>
           </div>
-          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-        </label>
-        <p className="text-xs text-muted-foreground">Drag to rotate · Scroll to zoom</p>
+        )}
+
+        <div className="absolute top-5 left-5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-border/80 text-xs font-medium text-muted-foreground pointer-events-none shadow-sm">
+          <MonitorSmartphone className="w-3.5 h-3.5 text-primary" />
+          <span>Angle: <strong className="text-foreground font-semibold">{currentPoseName}</strong></span>
+        </div>
+      </div>
+
+      <div className="w-full md:w-[420px] h-[45%] md:h-full bg-card/30 backdrop-blur-2xl p-6 overflow-y-auto flex flex-col justify-between gap-6 z-20 border-l border-border/40 shadow-2xl">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between border-b border-border/80 pb-4">
+            <div>
+              <h1 className="text-sm font-bold tracking-tight">Studio Setup</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Customize display target & device pose</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => applyPoseAngles([0, 0, 0], "Default Front")}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Layers className="w-3.5 h-3.5 text-primary/80" />
+              <span>Screen Artwork</span>
+            </div>
+            <label className="flex flex-col items-center justify-center w-full h-24 border border-dashed border-border hover:border-primary/50 rounded-xl cursor-pointer bg-secondary/20 hover:bg-secondary/40 transition-all group relative overflow-hidden">
+              <div className="flex flex-col items-center justify-center text-center px-4 relative z-10">
+                <Upload className="w-4 h-4 mb-1.5 text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all duration-200" />
+                <p className="text-xs font-medium text-foreground truncate max-w-[260px]">
+                  {uploaded ? fileName : "Click to embed media"}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Optimal size: 1290 x 2796 px</p>
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Sparkles className="w-3.5 h-3.5 text-primary/80" />
+              <span>Quick Framing</span>
+            </div>
+            <div className="p-1.5 rounded-xl bg-secondary/20 border border-border/30">
+              <Button
+                variant="ghost"
+                className="w-full justify-center h-10 text-xs font-medium bg-background/50 hover:bg-background text-foreground tracking-wide rounded-lg shadow-sm transition-all"
+                onClick={handleRandomPose}
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-2 text-primary" />
+                Randomize Perspective
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Sliders className="w-3.5 h-3.5 text-primary/80" />
+              <span>Precise Orientation</span>
+            </div>
+
+            <div className="space-y-1.5 p-2.5 rounded-xl bg-secondary/20 border border-border/30">
+              <div className="flex justify-between text-[11px] font-medium px-1">
+                <span className="text-muted-foreground">Pan (Y Axis)</span>
+                <span className="font-mono text-foreground font-semibold">{rotY}°</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80" onClick={() => stepAngle('y', -1, -180, 180)}>
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <Slider value={[rotY]} min={-180} max={180} step={1} className="flex-1 cursor-grab active:cursor-grabbing" onValueChange={(val) => handleAngleChange('y', val[0])} />
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80" onClick={() => stepAngle('y', 1, -180, 180)}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 p-2.5 rounded-xl bg-secondary/20 border border-border/30">
+              <div className="flex justify-between text-[11px] font-medium px-1">
+                <span className="text-muted-foreground">Tilt (X Axis)</span>
+                <span className="font-mono text-foreground font-semibold">{rotX}°</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80" onClick={() => stepAngle('x', -1, -90, 90)}>
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <Slider value={[rotX]} min={-90} max={90} step={1} className="flex-1 cursor-grab active:cursor-grabbing" onValueChange={(val) => handleAngleChange('x', val[0])} />
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80" onClick={() => stepAngle('x', 1, -90, 90)}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 p-2.5 rounded-xl bg-secondary/20 border border-border/30">
+              <div className="flex justify-between text-[11px] font-medium px-1">
+                <span className="text-muted-foreground">Roll (Z Axis)</span>
+                <span className="font-mono text-foreground font-semibold">{rotZ}°</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80" onClick={() => stepAngle('z', -1, -180, 180)}>
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <Slider value={[rotZ]} min={-180} max={180} step={1} className="flex-1 cursor-grab active:cursor-grabbing" onValueChange={(val) => handleAngleChange('z', val[0])} />
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80" onClick={() => stepAngle('z', 1, -180, 180)}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-4 border-t border-border/60 mt-auto">
+          <Button
+            className="w-full h-11 rounded-xl shadow-lg font-semibold text-xs tracking-wide transition-all duration-200 active:scale-[0.98]"
+            disabled={loading}
+            onClick={handleDownload}
+          >
+            <Download className="w-4 h-4 mr-2 stroke-[2.5]" />
+            Export High-Res PNG
+          </Button>
+        </div>
       </div>
     </div>
   )
