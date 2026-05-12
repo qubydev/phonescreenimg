@@ -99,7 +99,7 @@ export default function StudioPage() {
     modelGroupRef.current = pivotGroup
 
     const loader = new GLTFLoader()
-    loader.load('/models/iphone_17_pro_max.glb', (gltf) => {
+    loader.load('/models/iphone_14_pro.glb', (gltf) => {
       const model = gltf.scene
 
       const initialBBox = new THREE.Box3().setFromObject(model)
