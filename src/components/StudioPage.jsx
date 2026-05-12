@@ -63,7 +63,7 @@ export default function StudioPage() {
     renderer.setSize(mount.clientWidth, mount.clientHeight)
     renderer.outputColorSpace = THREE.SRGBColorSpace
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.1
+    renderer.toneMappingExposure = 1.25
     renderer.setClearColor(0x000000, 0)
     mount.appendChild(renderer.domElement)
 
