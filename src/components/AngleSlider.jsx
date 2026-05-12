@@ -6,43 +6,46 @@ import { Plus, Minus } from "lucide-react"
 
 export default function AngleSlider({
   label,
-  axis,
   value,
+  displayValue,
   min,
   max,
-  onAngleChange,
-  onStepAngle
+  step = 1,
+  onChange,
+  onStep
 }) {
+  const display = displayValue ?? `${value}°`
+
   return (
-    <div className="space-y-1.5 p-2.5 rounded-xl bg-secondary/20 border border-border/30">
-      <div className="flex justify-between text-[11px] font-medium px-1">
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs font-semibold">
         <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono text-foreground font-semibold">{value}°</span>
+        <span className="font-mono text-foreground font-semibold tracking-tight">{display}</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <Button
-          variant="ghost"
+          variant="secondary"
           size="icon"
-          className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80"
-          onClick={() => onStepAngle(axis, -1, min, max)}
+          className="h-9 w-9 rounded-lg shrink-0 transition-all duration-150"
+          onClick={() => onStep(-1)}
         >
-          <Minus className="h-3 w-3" />
+          <Minus className="h-4 w-4" />
         </Button>
         <Slider
           value={[value]}
           min={min}
           max={max}
-          step={1}
+          step={step}
           className="flex-1 cursor-grab active:cursor-grabbing"
-          onValueChange={(val) => onAngleChange(axis, val[0])}
+          onValueChange={(val) => onChange(val[0])}
         />
         <Button
-          variant="ghost"
+          variant="secondary"
           size="icon"
-          className="h-6 w-6 rounded-md shrink-0 hover:bg-background/80"
-          onClick={() => onStepAngle(axis, 1, min, max)}
+          className="h-9 w-9 rounded-lg shrink-0 transition-all duration-150"
+          onClick={() => onStep(1)}
         >
-          <Plus className="h-3 w-3" />
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
     </div>

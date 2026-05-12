@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { MonitorSmartphone } from 'lucide-react'
 import ControlsPanel from '@/components/ControlsPanel'
 import { CORNER_RADIUS, STUDIO_POSES, drawRoundedRect } from '@/lib/phone'
 
@@ -13,6 +12,7 @@ export default function StudioPage() {
   const screenRef = useRef(null)
   const modelGroupRef = useRef(null)
   const controlsRef = useRef(null)
+  const cameraRef = useRef(null)
 
   const [uploaded, setUploaded] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -22,6 +22,7 @@ export default function StudioPage() {
   const [rotX, setRotX] = useState(0)
   const [rotY, setRotY] = useState(0)
   const [rotZ, setRotZ] = useState(0)
+  const [zoom, setZoom] = useState(6.5)
 
   const rotRefs = useRef({ x: 0, y: 0, z: 0 })
 
@@ -69,6 +70,7 @@ export default function StudioPage() {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 0.1, 100)
     camera.position.set(0, 0, 6.5)
+    cameraRef.current = camera
 
     scene.add(new THREE.AmbientLight(0xffffff, 1.8))
     const keyLight = new THREE.DirectionalLight(0xffffff, 3.5)
@@ -278,6 +280,27 @@ export default function StudioPage() {
     handleAngleChange(axis, next)
   }
 
+  const handleZoomChange = useCallback((value) => {
+    setZoom(value)
+    if (cameraRef.current && controlsRef.current) {
+      cameraRef.current.position.set(0, 0, value)
+      controlsRef.current.target.set(0, 0, 0)
+      controlsRef.current.update()
+    }
+  }, [])
+
+  const handleZoomStep = useCallback((delta) => {
+    setZoom(prev => {
+      const next = Math.max(3.5, Math.min(9, prev + delta))
+      if (cameraRef.current && controlsRef.current) {
+        cameraRef.current.position.set(0, 0, next)
+        controlsRef.current.target.set(0, 0, 0)
+        controlsRef.current.update()
+      }
+      return next
+    })
+  }, [])
+
   const handleResetPose = () => {
     applyPoseAngles([0, 0, 0], "Default Front")
   }
@@ -294,26 +317,24 @@ export default function StudioPage() {
           </div>
         )}
 
-        <div className="absolute top-5 left-5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-border/80 text-xs font-medium text-muted-foreground pointer-events-none shadow-sm">
-          <MonitorSmartphone className="w-3.5 h-3.5 text-primary" />
-          <span>Angle: <strong className="text-foreground font-semibold">{currentPoseName}</strong></span>
-        </div>
       </div>
 
       <ControlsPanel
         uploaded={uploaded}
         fileName={fileName}
         loading={loading}
-        currentPoseName={currentPoseName}
         rotX={rotX}
         rotY={rotY}
         rotZ={rotZ}
+        zoom={zoom}
         onImageUpload={handleImageUpload}
         onDownload={handleDownload}
         onResetPose={handleResetPose}
         onRandomPose={handleRandomPose}
         onAngleChange={handleAngleChange}
         onStepAngle={stepAngle}
+        onZoomChange={handleZoomChange}
+        onZoomStep={handleZoomStep}
       />
     </div>
   )
