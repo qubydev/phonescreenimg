@@ -24,6 +24,11 @@ export default function StudioPage() {
   const [rotZ, setRotZ] = useState(0)
   const [zoom, setZoom] = useState(6.5)
 
+  const [bgType, setBgType] = useState('color')
+  const [bgValue, setBgValue] = useState('#121214')
+
+  const bgRefs = useRef({ type: 'color', value: '#121214' })
+
   const rotRefs = useRef({ x: 0, y: 0, z: 0 })
 
   const updateRotation = useCallback((axis, value) => {
@@ -263,9 +268,46 @@ export default function StudioPage() {
     const canvas = mountRef.current?.querySelector('canvas')
     if (!canvas) return
 
+    const { type, value } = bgRefs.current
+    const w = canvas.width
+    const h = canvas.height
+
+    const composite = document.createElement('canvas')
+    composite.width = w
+    composite.height = h
+    const ctx = composite.getContext('2d')
+
+    if (type === 'color') {
+      ctx.fillStyle = value
+      ctx.fillRect(0, 0, w, h)
+    } else if (type === 'image') {
+      const bgImg = new Image()
+      bgImg.src = value
+      bgImg.crossOrigin = 'anonymous'
+      const done = () => {
+        const iw = bgImg.naturalWidth || bgImg.width
+        const ih = bgImg.naturalHeight || bgImg.height
+        const scale = Math.max(w / iw, h / ih)
+        const sw = iw * scale
+        const sh = ih * scale
+        const sx = (w - sw) / 2
+        const sy = (h - sh) / 2
+        ctx.drawImage(bgImg, sx, sy, sw, sh)
+        ctx.drawImage(canvas, 0, 0)
+        const link = document.createElement('a')
+        link.download = fileName ? `mockup-${fileName.split('.')[0]}.png` : 'phone-mockup.png'
+        link.href = composite.toDataURL('image/png')
+        link.click()
+      }
+      bgImg.complete ? done() : (bgImg.onload = done)
+      return
+    }
+
+    ctx.drawImage(canvas, 0, 0)
+
     const link = document.createElement('a')
     link.download = fileName ? `mockup-${fileName.split('.')[0]}.png` : 'phone-mockup.png'
-    link.href = canvas.toDataURL('image/png')
+    link.href = composite.toDataURL('image/png')
     link.click()
   }, [fileName])
 
@@ -305,10 +347,41 @@ export default function StudioPage() {
     applyPoseAngles([0, 0, 0], "Default Front")
   }
 
+  const handleBgChange = useCallback((type, value) => {
+    setBgType(type)
+    setBgValue(value)
+    bgRefs.current = { type, value }
+  }, [])
+
   return (
     <div className="flex flex-col md:flex-row w-screen h-screen bg-background text-foreground overflow-hidden select-none">
-      <div className="relative flex-1 h-[55%] md:h-full w-full flex items-center justify-center border-b md:border-b-0 md:border-r border-border/60 bg-dot-black/[0.08] dark:bg-dot-white/[0.04]">
-        <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
+      <div
+        className="relative flex-1 h-[55%] md:h-full w-full flex items-center justify-center border-b md:border-b-0 md:border-r border-border/60 overflow-hidden"
+        style={bgType === 'image' ? {
+          backgroundImage: `url(${bgValue})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        } : bgType === 'color' ? {
+          backgroundColor: bgValue,
+        } : {
+          backgroundColor: '#121214',
+        }}
+      >
+        {bgType === 'transparent' && (
+          <div
+            className="absolute inset-0 opacity-80"
+            style={{
+              backgroundImage: `linear-gradient(45deg, #555 25%, transparent 25%),
+                linear-gradient(-45deg, #555 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #555 75%),
+                linear-gradient(-45deg, transparent 75%, #555 75%)`,
+              backgroundSize: '14px 14px',
+              backgroundPosition: '0 0, 0 7px, 7px -7px, -7px 0',
+            }}
+          />
+        )}
+        <div className="absolute inset-0 bg-dot-black/[0.06] dark:bg-dot-white/[0.03] pointer-events-none" />
+        <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing z-[1]" />
 
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/80 backdrop-blur-md z-10">
@@ -327,6 +400,8 @@ export default function StudioPage() {
         rotY={rotY}
         rotZ={rotZ}
         zoom={zoom}
+        bgType={bgType}
+        bgValue={bgValue}
         onImageUpload={handleImageUpload}
         onDownload={handleDownload}
         onResetPose={handleResetPose}
@@ -335,6 +410,7 @@ export default function StudioPage() {
         onStepAngle={stepAngle}
         onZoomChange={handleZoomChange}
         onZoomStep={handleZoomStep}
+        onBgChange={handleBgChange}
       />
     </div>
   )
