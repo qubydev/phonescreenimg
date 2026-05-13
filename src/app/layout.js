@@ -1,4 +1,5 @@
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,6 +40,13 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${inter.className} h-full antialiased`}
     >
+      <head>
+        <Script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="fd14dca1-fbcf-41c8-a713-a141472ea24d"
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
