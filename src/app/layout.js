@@ -19,6 +19,11 @@ export const metadata = {
     "phone frame",
     "device mockup",
     "iscreenshot",
+    "iphone mockup generator",
+    "screenshot to mockup",
+    "app screenshot maker",
+    "3D iPhone mockup",
+    "Angled iPhone Mockup"
   ],
   openGraph: {
     title: "iScreenshot — 3D iPhone Mockup Generator",
@@ -28,7 +33,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "iScreenshot — 3D iPhone Mockup Generator",
+    title: "iPhoneShot — 3D iPhone Mockup Generator",
     description:
       "Create stunning 3D iPhone mockups from your screenshots. No signup required.",
   },
