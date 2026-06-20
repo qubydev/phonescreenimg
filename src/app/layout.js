@@ -51,6 +51,11 @@ export default function RootLayout({ children }) {
           src="https://cloud.umami.is/script.js"
           data-website-id="fd14dca1-fbcf-41c8-a713-a141472ea24d"
         />
+        <Script
+          defer
+          src="https://vertics.vercel.app/vertics.js"
+          data-token="4873e8a1-1246-4ca9-b247-b11fdb4f71a3"
+        />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
